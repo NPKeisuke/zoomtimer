@@ -1,12 +1,25 @@
-import type { TimerPreset } from '../types';
+import type { TimerPreset, AlarmConfig } from '../types';
 
 const PRESETS_KEY = 'meeting_timer_presets';
 const ZOOM_CONFIG_KEY = 'meeting_timer_zoom_config';
 
+function migrateAlarm(alarm: AlarmConfig): AlarmConfig {
+  return {
+    ...alarm,
+    soundType: (alarm.soundType === 'tts' as string) ? 'bell+voice' : alarm.soundType,
+    bellType: alarm.bellType ?? 'chime1',
+  };
+}
+
+function migratePreset(preset: TimerPreset): TimerPreset {
+  return { ...preset, alarms: preset.alarms.map(migrateAlarm) };
+}
+
 export function loadPresets(): TimerPreset[] {
   try {
     const raw = localStorage.getItem(PRESETS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const presets: TimerPreset[] = raw ? JSON.parse(raw) : [];
+    return presets.map(migratePreset);
   } catch {
     return [];
   }
@@ -19,19 +32,14 @@ export function savePresets(presets: TimerPreset[]): void {
 export function savePreset(preset: TimerPreset): void {
   const presets = loadPresets();
   const idx = presets.findIndex(p => p.id === preset.id);
-  if (idx >= 0) {
-    presets[idx] = preset;
-  } else {
-    presets.push(preset);
-  }
+  if (idx >= 0) presets[idx] = preset;
+  else presets.push(preset);
   savePresets(presets);
 }
 
 export function deletePreset(id: string): void {
-  const presets = loadPresets().filter(p => p.id !== id);
-  savePresets(presets);
+  savePresets(loadPresets().filter(p => p.id !== id));
 }
-
 
 export function loadZoomConfig(): { clientId: string; clientSecret: string } {
   const envDefaults = {

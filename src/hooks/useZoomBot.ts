@@ -63,26 +63,49 @@ export function useZoomBot() {
 
       setStatus('connected');
 
-      // Start virtual video from canvas
+      // After join succeeds, set up virtual media
       setTimeout(async () => {
         try {
           const mediaStream = client.getMediaStream();
 
+          // Virtual video from canvas
           if (canvasRef.current) {
-            const videoStream = (canvasRef.current as any).captureStream(30) as MediaStream;
-            await mediaStream.startVideo({ videoElement: canvasRef.current });
-            void videoStream; // used implicitly by SDK
+            const canvas = canvasRef.current;
+            try {
+              // Try SDK-native canvas capture first
+              await (mediaStream as any).startVideo({ captureCanvas: canvas, captureFrameRate: 30 });
+            } catch {
+              try {
+                // Fallback: start video then replace track
+                await mediaStream.startVideo();
+                await new Promise(r => setTimeout(r, 500));
+                const stream = (canvas as any).captureStream(30) as MediaStream;
+                const [videoTrack] = stream.getVideoTracks();
+                if (videoTrack && (mediaStream as any).replaceTrack) {
+                  await (mediaStream as any).replaceTrack(videoTrack);
+                }
+              } catch (e2) {
+                console.warn('Virtual camera setup failed:', e2);
+              }
+            }
           }
 
-          // Inject virtual audio stream
+          // Virtual audio from AudioContext
           const audioStream = getVirtualAudioStream();
-          if (audioStream) {
-            await mediaStream.startAudio({ stream: audioStream });
-          } else {
+          try {
             await mediaStream.startAudio();
+            if (audioStream) {
+              await new Promise(r => setTimeout(r, 500));
+              const [audioTrack] = audioStream.getAudioTracks();
+              if (audioTrack && (mediaStream as any).replaceTrack) {
+                await (mediaStream as any).replaceTrack(audioTrack);
+              }
+            }
+          } catch (e3) {
+            console.warn('Audio setup failed:', e3);
           }
         } catch (e) {
-          console.warn('Media setup error (non-fatal):', e);
+          console.warn('Media setup error:', e);
         }
       }, 2000);
     } catch (e: any) {

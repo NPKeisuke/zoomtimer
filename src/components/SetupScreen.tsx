@@ -27,14 +27,12 @@ export function SetupScreen({ onStart }: Props) {
     presets[0] ?? createDefaultPreset()
   );
   const [presetName, setPresetName] = useState(activePreset.name);
-  const credentialsConfigured = !!(clientId && clientSecret);
   const [showSettings, setShowSettings] = useState(false);
 
+  const credentialsConfigured = !!(clientId && clientSecret);
+
   const updateAlarm = (updated: AlarmConfig) => {
-    setActivePreset(p => ({
-      ...p,
-      alarms: p.alarms.map(a => a.id === updated.id ? updated : a),
-    }));
+    setActivePreset(p => ({ ...p, alarms: p.alarms.map(a => a.id === updated.id ? updated : a) }));
   };
 
   const handleSavePreset = () => {
@@ -44,17 +42,14 @@ export function SetupScreen({ onStart }: Props) {
   };
 
   const handleNewPreset = () => {
-    const preset = { ...createDefaultPreset(), id: generateId(), name: 'New Preset' };
+    const preset = { ...createDefaultPreset(), id: generateId(), name: '新しいプリセット' };
     setActivePreset(preset);
     setPresetName(preset.name);
   };
 
   const handleLoadPreset = (id: string) => {
     const found = loadPresets().find(p => p.id === id);
-    if (found) {
-      setActivePreset(found);
-      setPresetName(found.name);
-    }
+    if (found) { setActivePreset(found); setPresetName(found.name); }
   };
 
   const handleDeletePreset = (id: string) => {
@@ -72,18 +67,10 @@ export function SetupScreen({ onStart }: Props) {
 
   const handleStart = () => {
     prewarmTTS();
-    if (joinZoom) {
-      saveZoomConfig({ clientId, clientSecret });
-    }
+    if (joinZoom) saveZoomConfig({ clientId, clientSecret });
     onStart(
       activePreset,
-      {
-        clientId,
-        clientSecret,
-        meetingNumber: meetingNumber.replace(/\s/g, ''),
-        passcode,
-        displayName: 'Meeting Timer',
-      },
+      { clientId, clientSecret, meetingNumber: meetingNumber.replace(/\s/g, ''), passcode, displayName: 'Meeting Timer' },
       joinZoom
     );
   };
@@ -93,209 +80,165 @@ export function SetupScreen({ onStart }: Props) {
   const overtimeAlarm = activePreset.alarms.find(a => a.type === 'overtime');
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4">
-      <div className="max-w-2xl mx-auto space-y-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-50 p-4 md:p-6">
+      <div className="max-w-3xl mx-auto space-y-5">
 
         {/* Header */}
-        <div className="text-center pt-4 pb-2">
-          <h1 className="text-3xl font-bold text-slate-800">⏱ Meeting Timer</h1>
-          <p className="text-slate-500 text-sm mt-1">Configure your timer and join the meeting</p>
+        <div className="text-center pt-6 pb-2">
+          <h1 className="text-3xl font-black text-slate-800 tracking-tight">ミーティングタイマー</h1>
+          <p className="text-slate-400 text-sm mt-1">タイマーを設定してZoom会議に参加</p>
         </div>
 
-        {/* SDK Settings toggle */}
-        <div className="bg-white rounded-2xl shadow-sm p-4">
+        {/* SDK Settings */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           <button
             onClick={() => setShowSettings(!showSettings)}
-            className="w-full flex items-center justify-between text-slate-700 font-medium"
+            className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
           >
-            <span>⚙️ Zoom SDK Settings</span>
-            <span className="text-slate-400">
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">⚙️</span>
+              <span className="font-semibold text-slate-700">Zoom SDK 設定</span>
+            </div>
+            <span className="text-sm">
               {credentialsConfigured && !showSettings
-                ? <span className="text-green-500 text-sm font-normal">✓ Configured</span>
-                : showSettings ? '▲' : '▼'}
+                ? <span className="text-green-500 font-medium">✓ 設定済み</span>
+                : <span className="text-slate-400">{showSettings ? '▲' : '▼'}</span>}
             </span>
           </button>
           {showSettings && (
-            <div className="mt-4 space-y-3">
+            <div className="px-5 pb-5 pt-1 space-y-3 border-t border-slate-100">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Client ID</label>
-                <input
-                  type="text"
-                  value={clientId}
-                  onChange={e => setClientId(e.target.value)}
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">クライアントID</label>
+                <input type="text" value={clientId} onChange={e => setClientId(e.target.value)}
                   placeholder="Zoom Meeting SDK Client ID"
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Client Secret</label>
-                <input
-                  type="password"
-                  value={clientSecret}
-                  onChange={e => setClientSecret(e.target.value)}
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">クライアントシークレット</label>
+                <input type="password" value={clientSecret} onChange={e => setClientSecret(e.target.value)}
                   placeholder="Zoom Meeting SDK Client Secret"
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
               {(!clientId || !clientSecret) && (
-                <p className="text-amber-600 text-xs bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                  SDK credentials not set. Timer will work locally but cannot join Zoom until credentials are configured.
+                <p className="text-amber-600 text-xs bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                  認証情報が未設定です。Zoomへの参加には設定が必要です。
                 </p>
               )}
             </div>
           )}
         </div>
 
-        {/* Zoom Meeting Join */}
-        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-800">Zoom Meeting</h2>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={joinZoom}
-                onChange={e => setJoinZoom(e.target.checked)}
-                className="accent-blue-600"
-              />
-              <span className="text-sm text-slate-600">Join Zoom</span>
+        {/* Zoom Meeting */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">📹</span>
+              <span className="font-semibold text-slate-700">Zoom ミーティング</span>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked={joinZoom} onChange={e => setJoinZoom(e.target.checked)}
+                className="accent-blue-600 w-4 h-4" />
+              <span className="text-sm font-medium text-slate-600">Zoomに参加</span>
             </label>
           </div>
           {joinZoom && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="px-5 py-4 grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Meeting ID</label>
-                <input
-                  type="text"
-                  value={meetingNumber}
-                  onChange={e => setMeetingNumber(e.target.value)}
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">ミーティングID</label>
+                <input type="text" value={meetingNumber} onChange={e => setMeetingNumber(e.target.value)}
                   placeholder="000 000 0000"
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Passcode</label>
-                <input
-                  type="text"
-                  value={passcode}
-                  onChange={e => setPasscode(e.target.value)}
-                  placeholder="Passcode"
-                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">パスコード</label>
+                <input type="text" value={passcode} onChange={e => setPasscode(e.target.value)}
+                  placeholder="パスコード"
+                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400" />
               </div>
             </div>
           )}
         </div>
 
-        {/* Preset Management */}
-        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-4">
-          <h2 className="text-lg font-semibold text-slate-800">Timer Preset</h2>
-
-          {loadPresets().length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {loadPresets().map(p => (
-                <div key={p.id} className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleLoadPreset(p.id)}
-                    className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-                      p.id === activePreset.id
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-slate-700 border-slate-300 hover:border-blue-400'
-                    }`}
-                  >
-                    {p.name}
-                  </button>
-                  <button
-                    onClick={() => handleDeletePreset(p.id)}
-                    className="text-slate-400 hover:text-red-500 text-xs"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={presetName}
-              onChange={e => setPresetName(e.target.value)}
-              placeholder="Preset name"
-              className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={handleSavePreset}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
-            >
-              Save
-            </button>
-            <button
-              onClick={handleNewPreset}
-              className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-medium rounded-lg transition-colors"
-            >
-              New
-            </button>
+        {/* Timer Preset */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2.5">
+            <span className="text-lg">⏱</span>
+            <span className="font-semibold text-slate-700">タイマープリセット</span>
           </div>
+          <div className="px-5 py-4 space-y-4">
+            {loadPresets().length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {loadPresets().map(p => (
+                  <div key={p.id} className="flex items-center gap-1">
+                    <button onClick={() => handleLoadPreset(p.id)}
+                      className={`px-3 py-1.5 text-sm rounded-xl border transition-colors ${p.id === activePreset.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400'}`}>
+                      {p.name}
+                    </button>
+                    <button onClick={() => handleDeletePreset(p.id)} className="text-slate-300 hover:text-red-400 text-sm px-1">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {/* Total time */}
-          <TimeInput
-            label="Total presentation time"
-            seconds={activePreset.totalSeconds}
-            onChange={v => setActivePreset(p => ({ ...p, totalSeconds: v }))}
-          />
+            <div className="flex gap-2">
+              <input type="text" value={presetName} onChange={e => setPresetName(e.target.value)}
+                placeholder="プリセット名"
+                className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <button onClick={handleSavePreset}
+                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors">
+                保存
+              </button>
+              <button onClick={handleNewPreset}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-semibold rounded-xl transition-colors">
+                新規
+              </button>
+            </div>
+
+            <TimeInput label="発表時間" seconds={activePreset.totalSeconds}
+              onChange={v => setActivePreset(p => ({ ...p, totalSeconds: v }))} />
+          </div>
         </div>
 
         {/* Alarms */}
-        <div className="bg-white rounded-2xl shadow-sm p-5 space-y-3">
-          <h2 className="text-lg font-semibold text-slate-800">Alarm Settings</h2>
-
-          {warningAlarms.map(alarm => (
-            <AlarmRow key={alarm.id} alarm={alarm} onChange={updateAlarm} />
-          ))}
-
-          {mainAlarm && <AlarmRow alarm={mainAlarm} onChange={updateAlarm} />}
-
-          {overtimeAlarm ? (
-            <AlarmRow alarm={overtimeAlarm} onChange={updateAlarm} />
-          ) : (
-            <button
-              onClick={() => {
-                const newAlarm: AlarmConfig = {
-                  id: generateId(),
-                  label: 'Overtime Alert',
-                  type: 'overtime',
-                  triggerAtSeconds: activePreset.overtimeIntervalSeconds,
-                  bellCount: 3,
-                  soundType: 'tts',
-                  ttsVoiceIndex: 0,
-                  ttsMessage: 'Time exceeded',
-                  enabled: true,
-                };
-                setActivePreset(p => ({ ...p, alarms: [...p.alarms, newAlarm] }));
-              }}
-              className="w-full py-2 border-2 border-dashed border-slate-300 rounded-xl text-slate-500 hover:border-blue-400 hover:text-blue-500 transition-colors text-sm"
-            >
-              + Add Overtime Alert
-            </button>
-          )}
-
-          {overtimeAlarm && (
-            <TimeInput
-              label="Overtime alert interval"
-              seconds={activePreset.overtimeIntervalSeconds}
-              onChange={v => setActivePreset(p => ({ ...p, overtimeIntervalSeconds: v }))}
-            />
-          )}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2.5">
+            <span className="text-lg">🔔</span>
+            <span className="font-semibold text-slate-700">アラーム設定</span>
+          </div>
+          <div className="px-5 py-4 space-y-3">
+            {warningAlarms.map(alarm => (
+              <AlarmRow key={alarm.id} alarm={alarm} onChange={updateAlarm} />
+            ))}
+            {mainAlarm && <AlarmRow alarm={mainAlarm} onChange={updateAlarm} />}
+            {overtimeAlarm
+              ? <AlarmRow alarm={overtimeAlarm} onChange={updateAlarm} />
+              : (
+                <button onClick={() => {
+                  const newAlarm: AlarmConfig = {
+                    id: generateId(), label: '延長アラート', type: 'overtime',
+                    triggerAtSeconds: activePreset.overtimeIntervalSeconds,
+                    bellCount: 3, soundType: 'bell+voice', bellType: 'metal1',
+                    ttsVoiceIndex: 0, ttsMessage: 'Time exceeded', enabled: true,
+                  };
+                  setActivePreset(p => ({ ...p, alarms: [...p.alarms, newAlarm] }));
+                }}
+                  className="w-full py-3 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors text-sm font-medium">
+                  + 延長アラートを追加
+                </button>
+              )
+            }
+            {overtimeAlarm && (
+              <TimeInput label="延長インターバル" seconds={activePreset.overtimeIntervalSeconds}
+                onChange={v => setActivePreset(p => ({ ...p, overtimeIntervalSeconds: v }))} />
+            )}
+          </div>
         </div>
 
         {/* Start Button */}
-        <button
-          onClick={handleStart}
-          className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold rounded-2xl shadow-lg transition-colors"
-        >
-          {joinZoom ? 'Join Meeting & Start Timer' : 'Start Timer (Local Only)'}
+        <button onClick={handleStart}
+          className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white text-xl font-black rounded-2xl shadow-lg transition-colors">
+          {joinZoom ? '📹 Zoomに参加してタイマー開始' : '▶ タイマー開始（ローカルのみ）'}
         </button>
-
         <div className="h-4" />
       </div>
     </div>

@@ -2,10 +2,11 @@ export interface AlarmConfig {
   id: string;
   label: string;
   type: 'warning' | 'main' | 'overtime';
-  triggerAtSeconds: number; // for warning: remaining seconds; for overtime: interval seconds
+  triggerAtSeconds: number;
   bellCount: 1 | 2 | 3;
-  soundType: 'bell' | 'tts';
-  ttsVoiceIndex: number; // 0-3
+  soundType: 'bell' | 'voice' | 'bell+voice';
+  bellType: 'chime1' | 'chime2' | 'metal1' | 'metal2';
+  ttsVoiceIndex: number;
   ttsMessage: string;
   enabled: boolean;
 }

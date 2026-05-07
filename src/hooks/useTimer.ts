@@ -23,10 +23,14 @@ export function useTimer(preset: TimerPreset) {
   presetRef.current = preset;
 
   const fireAlarm = useCallback((alarm: AlarmConfig) => {
+    const type = alarm.bellType ?? 'chime1';
     if (alarm.soundType === 'bell') {
-      playBell(alarm.bellCount);
+      playBell(alarm.bellCount, type);
+    } else if (alarm.soundType === 'voice') {
+      speakTTS(alarm.ttsMessage, alarm.ttsVoiceIndex);
     } else {
-      playBell(alarm.bellCount);
+      // 'bell+voice' or legacy 'tts'
+      playBell(alarm.bellCount, type);
       setTimeout(() => speakTTS(alarm.ttsMessage, alarm.ttsVoiceIndex), alarm.bellCount * 1200 + 200);
     }
   }, []);

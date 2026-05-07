@@ -17,56 +17,82 @@ export function getVirtualAudioStream(): MediaStream | null {
 function connectToDestination(node: AudioNode) {
   const ctx = getAudioContext();
   node.connect(ctx.destination);
-  if (virtualAudioDestination) {
-    node.connect(virtualAudioDestination);
-  }
+  if (virtualAudioDestination) node.connect(virtualAudioDestination);
 }
 
-// Metallic bell using FM synthesis
-export async function playBell(count: 1 | 2 | 3): Promise<void> {
+type BellType = 'chime1' | 'chime2' | 'metal1' | 'metal2';
+
+interface BellConfig {
+  carrierFreq: number;
+  modFreq: number;
+  modIndex: number;
+  attack: number;
+  decay: number;
+  gain: number;
+  interval: number;
+}
+
+const BELL_CONFIGS: Record<BellType, BellConfig> = {
+  chime1: { carrierFreq: 1047, modFreq: 1047, modIndex: 20,  attack: 0.003, decay: 2.8, gain: 0.45, interval: 1.4 },
+  chime2: { carrierFreq: 1568, modFreq: 784,  modIndex: 120, attack: 0.002, decay: 2.2, gain: 0.50, interval: 1.2 },
+  metal1: { carrierFreq: 880,  modFreq: 1234, modIndex: 350, attack: 0.001, decay: 3.5, gain: 0.45, interval: 2.0 },
+  metal2: { carrierFreq: 220,  modFreq: 310,  modIndex: 100, attack: 0.010, decay: 5.0, gain: 0.55, interval: 3.0 },
+};
+
+function playOneBell(ctx: AudioContext, delay: number, cfg: BellConfig) {
+  const t = ctx.currentTime + delay;
+  const carrier = ctx.createOscillator();
+  const modulator = ctx.createOscillator();
+  const modGain = ctx.createGain();
+  const env = ctx.createGain();
+
+  carrier.type = 'sine';
+  carrier.frequency.setValueAtTime(cfg.carrierFreq, t);
+  modulator.type = 'sine';
+  modulator.frequency.setValueAtTime(cfg.modFreq, t);
+  modGain.gain.setValueAtTime(cfg.modIndex, t);
+
+  env.gain.setValueAtTime(0, t);
+  env.gain.linearRampToValueAtTime(cfg.gain, t + cfg.attack);
+  env.gain.exponentialRampToValueAtTime(0.001, t + cfg.decay);
+
+  modulator.connect(modGain);
+  modGain.connect(carrier.frequency);
+  carrier.connect(env);
+  connectToDestination(env);
+
+  carrier.start(t);
+  modulator.start(t);
+  carrier.stop(t + cfg.decay);
+  modulator.stop(t + cfg.decay);
+}
+
+export async function playBell(count: 1 | 2 | 3, type: BellType = 'chime1'): Promise<void> {
   const ctx = getAudioContext();
   if (ctx.state === 'suspended') await ctx.resume();
-
-  const playOneBell = (delaySeconds: number) => {
-    const startTime = ctx.currentTime + delaySeconds;
-    const duration = 2.5;
-
-    const carrier = ctx.createOscillator();
-    const modulator = ctx.createOscillator();
-    const modGain = ctx.createGain();
-    const envelopeGain = ctx.createGain();
-
-    carrier.type = 'sine';
-    carrier.frequency.setValueAtTime(880, startTime);
-    modulator.type = 'sine';
-    modulator.frequency.setValueAtTime(440, startTime);
-    modGain.gain.setValueAtTime(220, startTime);
-
-    envelopeGain.gain.setValueAtTime(0, startTime);
-    envelopeGain.gain.linearRampToValueAtTime(0.6, startTime + 0.01);
-    envelopeGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-
-    modulator.connect(modGain);
-    modGain.connect(carrier.frequency);
-    carrier.connect(envelopeGain);
-    connectToDestination(envelopeGain);
-
-    carrier.start(startTime);
-    modulator.start(startTime);
-    carrier.stop(startTime + duration);
-    modulator.stop(startTime + duration);
-  };
-
+  const cfg = BELL_CONFIGS[type];
   for (let i = 0; i < count; i++) {
-    playOneBell(i * 1.2);
+    playOneBell(ctx, i * cfg.interval, cfg);
   }
 }
 
+export function getBellTypeName(type: BellType): string {
+  const names: Record<BellType, string> = {
+    chime1: 'チャイム（柔らか）',
+    chime2: 'チャイム（明るい）',
+    metal1: '金属ベル',
+    metal2: 'ゴング',
+  };
+  return names[type];
+}
+
+export const BELL_TYPES: BellType[] = ['chime1', 'chime2', 'metal1', 'metal2'];
+
 const TTS_VOICES = [
-  { name: 'Voice 1 (Bright)', lang: 'en-US', pitch: 1.4, rate: 0.95 },
-  { name: 'Voice 2 (Clear)', lang: 'en-US', pitch: 1.2, rate: 1.0 },
-  { name: 'Voice 3 (Gentle)', lang: 'en-GB', pitch: 1.3, rate: 0.9 },
-  { name: 'Voice 4 (Natural)', lang: 'en-AU', pitch: 1.1, rate: 1.05 },
+  { name: 'ボイス1（ジェントル）', lang: 'en-GB', pitch: 1.3, rate: 0.90 },
+  { name: 'ボイス2（ナチュラル）', lang: 'en-AU', pitch: 1.1, rate: 1.05 },
+  { name: 'ボイス3（ウォーム）',   lang: 'en-GB', pitch: 1.2, rate: 0.92 },
+  { name: 'ボイス4（クリア）',     lang: 'en-AU', pitch: 1.15, rate: 1.0 },
 ];
 
 export function getTTSVoiceNames(): string[] {
@@ -76,12 +102,8 @@ export function getTTSVoiceNames(): string[] {
 let voicesLoaded = false;
 export function prewarmTTS(): void {
   if (voicesLoaded) return;
-  const synth = window.speechSynthesis;
-  // Trigger voice list loading
-  synth.getVoices();
-  window.speechSynthesis.onvoiceschanged = () => {
-    voicesLoaded = true;
-  };
+  window.speechSynthesis.getVoices();
+  window.speechSynthesis.onvoiceschanged = () => { voicesLoaded = true; };
 }
 
 function findBestVoice(lang: string): SpeechSynthesisVoice | null {
@@ -98,16 +120,13 @@ function findBestVoice(lang: string): SpeechSynthesisVoice | null {
 export function speakTTS(message: string, voiceIndex: number): void {
   const synth = window.speechSynthesis;
   synth.cancel();
-
   const config = TTS_VOICES[voiceIndex] ?? TTS_VOICES[0];
   const utterance = new SpeechSynthesisUtterance(message);
   utterance.lang = config.lang;
   utterance.pitch = config.pitch;
   utterance.rate = config.rate;
   utterance.volume = 1.0;
-
   const voice = findBestVoice(config.lang);
   if (voice) utterance.voice = voice;
-
   synth.speak(utterance);
 }

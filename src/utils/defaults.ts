@@ -4,22 +4,24 @@ export function createDefaultPreset(): TimerPreset {
   const alarms: AlarmConfig[] = [
     {
       id: 'warning-1',
-      label: '1st Warning',
+      label: '1分前警告',
       type: 'warning',
-      triggerAtSeconds: 120, // 2 minutes remaining
+      triggerAtSeconds: 60,
       bellCount: 1,
-      soundType: 'tts',
+      soundType: 'bell+voice',
+      bellType: 'chime1',
       ttsVoiceIndex: 0,
-      ttsMessage: '2 minutes remaining',
+      ttsMessage: 'One minute remaining',
       enabled: true,
     },
     {
       id: 'main-bell',
-      label: 'Main Bell',
+      label: 'メインベル',
       type: 'main',
       triggerAtSeconds: 0,
       bellCount: 2,
-      soundType: 'tts',
+      soundType: 'bell+voice',
+      bellType: 'chime2',
       ttsVoiceIndex: 0,
       ttsMessage: 'Time is over',
       enabled: true,
@@ -28,9 +30,9 @@ export function createDefaultPreset(): TimerPreset {
 
   return {
     id: 'default',
-    name: '10 min presentation',
+    name: '10分プレゼン',
     totalSeconds: 600,
     alarms,
-    overtimeIntervalSeconds: 120, // every 2 minutes
+    overtimeIntervalSeconds: 120,
   };
 }

@@ -35,7 +35,7 @@ export function PasswordScreen({ onUnlock }: Props) {
         <div className="text-center mb-6">
           <div className="text-4xl mb-2">⏱</div>
           <h1 className="text-2xl font-bold text-slate-800">Meeting Timer</h1>
-          <p className="text-slate-500 text-sm mt-1">Enter your password</p>
+          <p className="text-slate-500 text-sm mt-1">パスワードを入力してください</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -53,7 +53,7 @@ export function PasswordScreen({ onUnlock }: Props) {
             disabled={checking}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
           >
-            Unlock
+            ロック解除
           </button>
         </form>
       </div>

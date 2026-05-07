@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(shasum -a 256)"
+      "Bash(shasum -a 256)",
+      "Bash(npm run *)"
     ]
   }
 }
