@@ -13,7 +13,7 @@ export function useZoomApp() {
     (async () => {
       try {
         const config = await zoomSdk.config({
-          capabilities: ['shareApp', 'getRunningContext', 'getMeetingContext'],
+          capabilities: ['shareApp', 'shareComputerAudio', 'getRunningContext', 'getMeetingContext'],
         });
         if (cancelled) return;
         const ctx = (config as unknown as { runningContext?: string })?.runningContext ?? '';
@@ -36,7 +36,16 @@ export function useZoomApp() {
 
   const share = useCallback(async () => {
     try {
+      // Start sharing the app with audio
       await zoomSdk.shareApp({ action: 'start', withSound: true });
+      // Also explicitly start computer audio share (in case withSound alone isn't enough)
+      try {
+        await (zoomSdk as unknown as {
+          shareComputerAudio: (opts: { action: 'start' | 'stop' }) => Promise<unknown>;
+        }).shareComputerAudio({ action: 'start' });
+      } catch (audioErr) {
+        console.warn('[useZoomApp] shareComputerAudio failed:', audioErr);
+      }
       setStatus('sharing');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '共有開始に失敗しました';
@@ -47,6 +56,13 @@ export function useZoomApp() {
 
   const stopShare = useCallback(async () => {
     try {
+      try {
+        await (zoomSdk as unknown as {
+          shareComputerAudio: (opts: { action: 'start' | 'stop' }) => Promise<unknown>;
+        }).shareComputerAudio({ action: 'stop' });
+      } catch {
+        /* ignore */
+      }
       await zoomSdk.shareApp({ action: 'stop' });
       setStatus('ready');
     } catch (e: unknown) {

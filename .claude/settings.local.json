@@ -6,7 +6,9 @@
       "Bash(npm install *)",
       "Bash(curl -sI https://profound-kelpie-c74837.netlify.app/)",
       "Bash(curl -sI -X GET https://profound-kelpie-c74837.netlify.app)",
-      "Bash(curl -sI https://profound-kelpie-c74837.netlify.app/index.html)"
+      "Bash(curl -sI https://profound-kelpie-c74837.netlify.app/index.html)",
+      "WebFetch(domain:developers.zoom.us)",
+      "Bash(curl -sL \"https://developers.zoom.us/docs/zoom-apps/security/owasp/\")"
     ]
   }
 }
