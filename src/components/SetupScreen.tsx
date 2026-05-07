@@ -27,6 +27,7 @@ export function SetupScreen({ onStart }: Props) {
     presets[0] ?? createDefaultPreset()
   );
   const [presetName, setPresetName] = useState(activePreset.name);
+  const credentialsConfigured = !!(clientId && clientSecret);
   const [showSettings, setShowSettings] = useState(false);
 
   const updateAlarm = (updated: AlarmConfig) => {
@@ -108,7 +109,11 @@ export function SetupScreen({ onStart }: Props) {
             className="w-full flex items-center justify-between text-slate-700 font-medium"
           >
             <span>⚙️ Zoom SDK Settings</span>
-            <span className="text-slate-400">{showSettings ? '▲' : '▼'}</span>
+            <span className="text-slate-400">
+              {credentialsConfigured && !showSettings
+                ? <span className="text-green-500 text-sm font-normal">✓ Configured</span>
+                : showSettings ? '▲' : '▼'}
+            </span>
           </button>
           {showSettings && (
             <div className="mt-4 space-y-3">

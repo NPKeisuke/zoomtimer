@@ -34,11 +34,15 @@ export function deletePreset(id: string): void {
 
 
 export function loadZoomConfig(): { clientId: string; clientSecret: string } {
+  const envDefaults = {
+    clientId: import.meta.env.VITE_ZOOM_CLIENT_ID ?? '',
+    clientSecret: import.meta.env.VITE_ZOOM_CLIENT_SECRET ?? '',
+  };
   try {
     const raw = localStorage.getItem(ZOOM_CONFIG_KEY);
-    return raw ? JSON.parse(raw) : { clientId: '', clientSecret: '' };
+    return raw ? JSON.parse(raw) : envDefaults;
   } catch {
-    return { clientId: '', clientSecret: '' };
+    return envDefaults;
   }
 }
 
