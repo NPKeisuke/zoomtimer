@@ -3,7 +3,10 @@
     "allow": [
       "Bash(shasum -a 256)",
       "Bash(npm run *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(curl -sI https://profound-kelpie-c74837.netlify.app/)",
+      "Bash(curl -sI -X GET https://profound-kelpie-c74837.netlify.app)",
+      "Bash(curl -sI https://profound-kelpie-c74837.netlify.app/index.html)"
     ]
   }
 }

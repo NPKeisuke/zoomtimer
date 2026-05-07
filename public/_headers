@@ -1,6 +1,7 @@
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://appssdk.zoom.us; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.zoom.us wss://*.zoom.us; frame-ancestors https://*.zoom.us https://zoom.us; worker-src 'self' blob:; child-src 'self' blob:
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: default-src 'self' https://appssdk.zoom.us; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://appssdk.zoom.us; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.zoom.us wss://*.zoom.us; frame-ancestors https://*.zoom.us https://zoom.us; frame-src 'self' https://*.zoom.us; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
+  X-Frame-Options: ALLOW-FROM https://zoom.us
