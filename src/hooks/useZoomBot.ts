@@ -1,9 +1,56 @@
 import { useCallback, useRef, useState } from 'react';
 import type { ZoomConfig } from '../types';
 import { generateZoomSignature } from '../utils/signature';
-import { getVirtualAudioStream } from '../utils/audioEngine';
+import { getAudioContext, getVirtualAudioStream } from '../utils/audioEngine';
 
 export type ZoomStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+
+let originalGetUserMedia: typeof navigator.mediaDevices.getUserMedia | null = null;
+
+function installVirtualMedia(canvas: HTMLCanvasElement, audioStream: MediaStream | null) {
+  if (originalGetUserMedia) return;
+  originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+
+  navigator.mediaDevices.getUserMedia = async (
+    constraints?: MediaStreamConstraints
+  ): Promise<MediaStream> => {
+    console.log('[VirtualMedia] getUserMedia intercepted:', constraints);
+    const stream = new MediaStream();
+
+    if (constraints?.video) {
+      try {
+        const canvasStream = (canvas as HTMLCanvasElement & {
+          captureStream: (fps?: number) => MediaStream;
+        }).captureStream(30);
+        canvasStream.getVideoTracks().forEach(t => stream.addTrack(t));
+        console.log('[VirtualMedia] canvas video added');
+      } catch (e) {
+        console.warn('[VirtualMedia] canvas capture failed:', e);
+      }
+    }
+
+    if (constraints?.audio && audioStream) {
+      audioStream.getAudioTracks().forEach(t => stream.addTrack(t.clone()));
+      console.log('[VirtualMedia] virtual audio added');
+    }
+
+    if (stream.getTracks().length === 0 && originalGetUserMedia) {
+      console.log('[VirtualMedia] no virtual tracks, using real device');
+      return originalGetUserMedia(constraints);
+    }
+    return stream;
+  };
+
+  console.log('[VirtualMedia] hook installed');
+}
+
+function uninstallVirtualMedia() {
+  if (originalGetUserMedia) {
+    navigator.mediaDevices.getUserMedia = originalGetUserMedia;
+    originalGetUserMedia = null;
+    console.log('[VirtualMedia] hook uninstalled');
+  }
+}
 
 export function useZoomBot() {
   const [status, setStatus] = useState<ZoomStatus>('disconnected');
@@ -13,7 +60,7 @@ export function useZoomBot() {
 
   const join = useCallback(async (config: ZoomConfig) => {
     if (!config.clientId || !config.clientSecret) {
-      setErrorMsg('Zoom SDK credentials are not configured. Please add them in Settings.');
+      setErrorMsg('Zoom SDK の認証情報が未設定です。');
       setStatus('error');
       return;
     }
@@ -22,17 +69,29 @@ export function useZoomBot() {
     setErrorMsg('');
 
     try {
-      const { default: ZoomMtgEmbedded } = await import('@zoom/meetingsdk/embedded');
+      // Initialize audio context (needs user gesture; this counts because join is triggered by click)
+      const ctx = getAudioContext();
+      if (ctx.state === 'suspended') await ctx.resume();
 
+      // Install virtual media BEFORE the SDK loads, so any getUserMedia call is intercepted
+      const canvas = canvasRef.current;
+      const audioStream = getVirtualAudioStream();
+      if (canvas) {
+        installVirtualMedia(canvas, audioStream);
+      } else {
+        console.warn('[VirtualMedia] canvas ref not yet available');
+      }
+
+      const { default: ZoomMtgEmbedded } = await import('@zoom/meetingsdk/embedded');
       const client = ZoomMtgEmbedded.createClient() as any;
       clientRef.current = client;
 
-      // Create an invisible container for Zoom SDK UI
       let container = document.getElementById('zoom-sdk-container');
       if (!container) {
         container = document.createElement('div');
         container.id = 'zoom-sdk-container';
-        container.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;overflow:hidden;';
+        container.style.cssText =
+          'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;overflow:hidden;';
         document.body.appendChild(container);
       }
 
@@ -63,54 +122,39 @@ export function useZoomBot() {
 
       setStatus('connected');
 
-      // After join succeeds, set up virtual media
+      // Start video and audio — the SDK will call getUserMedia, which is now hooked
       setTimeout(async () => {
         try {
           const mediaStream = client.getMediaStream();
 
-          // Virtual video from canvas
-          if (canvasRef.current) {
-            const canvas = canvasRef.current;
-            try {
-              // Try SDK-native canvas capture first
-              await (mediaStream as any).startVideo({ captureCanvas: canvas, captureFrameRate: 30 });
-            } catch {
-              try {
-                // Fallback: start video then replace track
-                await mediaStream.startVideo();
-                await new Promise(r => setTimeout(r, 500));
-                const stream = (canvas as any).captureStream(30) as MediaStream;
-                const [videoTrack] = stream.getVideoTracks();
-                if (videoTrack && (mediaStream as any).replaceTrack) {
-                  await (mediaStream as any).replaceTrack(videoTrack);
-                }
-              } catch (e2) {
-                console.warn('Virtual camera setup failed:', e2);
-              }
-            }
+          try {
+            await mediaStream.startVideo();
+            console.log('[VirtualMedia] startVideo OK');
+          } catch (e) {
+            console.warn('[VirtualMedia] startVideo failed:', e);
           }
 
-          // Virtual audio from AudioContext
-          const audioStream = getVirtualAudioStream();
           try {
             await mediaStream.startAudio();
-            if (audioStream) {
-              await new Promise(r => setTimeout(r, 500));
-              const [audioTrack] = audioStream.getAudioTracks();
-              if (audioTrack && (mediaStream as any).replaceTrack) {
-                await (mediaStream as any).replaceTrack(audioTrack);
-              }
-            }
-          } catch (e3) {
-            console.warn('Audio setup failed:', e3);
+            console.log('[VirtualMedia] startAudio OK');
+          } catch (e) {
+            console.warn('[VirtualMedia] startAudio failed:', e);
+          }
+
+          // Unmute (some SDK versions start muted)
+          try {
+            await mediaStream.unmuteAudio();
+          } catch {
+            /* ignore */
           }
         } catch (e) {
-          console.warn('Media setup error:', e);
+          console.warn('media setup error:', e);
         }
-      }, 2000);
+      }, 2500);
     } catch (e: any) {
+      uninstallVirtualMedia();
       setStatus('error');
-      setErrorMsg(e?.message ?? 'Failed to join meeting');
+      setErrorMsg(e?.message ?? 'ミーティング参加に失敗しました');
     }
   }, []);
 
@@ -120,8 +164,9 @@ export function useZoomBot() {
         await clientRef.current.leaveMeeting();
       }
     } catch {
-      // ignore
+      /* ignore */
     } finally {
+      uninstallVirtualMedia();
       clientRef.current = null;
       setStatus('disconnected');
     }
