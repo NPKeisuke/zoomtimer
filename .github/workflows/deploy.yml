@@ -24,9 +24,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-        env:
-          VITE_ZOOM_CLIENT_ID: ${{ secrets.VITE_ZOOM_CLIENT_ID }}
-          VITE_ZOOM_CLIENT_SECRET: ${{ secrets.VITE_ZOOM_CLIENT_SECRET }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

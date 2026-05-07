@@ -1,37 +1,26 @@
-import { useEffect, useRef, useState } from 'react';
-import type { TimerPreset, ZoomConfig } from '../types';
+import { useRef, useState } from 'react';
+import type { TimerPreset, AlarmConfig } from '../types';
 import { useTimer } from '../hooks/useTimer';
-import { useZoomBot } from '../hooks/useZoomBot';
+import { useZoomApp } from '../hooks/useZoomApp';
 import { TimerCanvas } from './TimerCanvas';
 import { AlarmRow } from './AlarmRow';
 import { TimeInput } from './TimeInput';
-import type { AlarmConfig } from '../types';
 import { playBell, speakTTS, BELL_TYPES, getBellTypeName } from '../utils/audioEngine';
 
 interface Props {
   initialPreset: TimerPreset;
-  zoomConfig: ZoomConfig;
-  joinZoom: boolean;
   onExit: () => void;
 }
 
-export function ControlScreen({ initialPreset, zoomConfig, joinZoom, onExit }: Props) {
+export function ControlScreen({ initialPreset, onExit }: Props) {
   const [preset, setPreset] = useState<TimerPreset>(initialPreset);
   const { state, start, pause, reset, applyPreset } = useTimer(preset);
-  const { status, errorMsg, join, leave, canvasRef } = useZoomBot();
+  const { status, errorMsg, context, share, stopShare } = useZoomApp();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [showAlarms, setShowAlarms] = useState(false);
   const [showTest, setShowTest] = useState(false);
   const [testBellType, setTestBellType] = useState<'chime1' | 'chime2' | 'metal1' | 'metal2'>('chime1');
   const [testMessage, setTestMessage] = useState('One minute remaining');
-  const joinedRef = useRef(false);
-
-  useEffect(() => {
-    if (joinZoom && !joinedRef.current) {
-      joinedRef.current = true;
-      // Delay slightly to ensure canvas is fully mounted and rendering
-      setTimeout(() => join(zoomConfig), 100);
-    }
-  }, [joinZoom, zoomConfig, join]);
 
   const handleReset = () => { reset(); applyPreset(preset); };
 
@@ -44,19 +33,36 @@ export function ControlScreen({ initialPreset, zoomConfig, joinZoom, onExit }: P
     handlePresetChange({ ...preset, alarms: preset.alarms.map(a => a.id === updated.id ? updated : a) });
   };
 
-  const statusColor = {
-    disconnected: 'bg-slate-400',
-    connecting: 'bg-yellow-400 animate-pulse',
-    connected: 'bg-green-500',
-    error: 'bg-red-500',
-  }[status];
+  const inMeeting = context === 'inMeeting' || context === 'inImmersive';
 
-  const statusLabel = {
-    disconnected: '未接続',
-    connecting: '接続中...',
-    connected: 'Zoom接続済み',
-    error: '接続エラー',
-  }[status];
+  // Zoom App status indicator
+  let statusColor = 'bg-slate-400';
+  let statusLabel = '初期化中...';
+  if (status === 'initializing') {
+    statusColor = 'bg-slate-400 animate-pulse';
+    statusLabel = '初期化中...';
+  } else if (status === 'sharing') {
+    statusColor = 'bg-blue-500';
+    statusLabel = '全員に共有中';
+  } else if (status === 'error') {
+    statusColor = 'bg-red-500';
+    statusLabel = 'エラー';
+  } else if (status === 'not-in-zoom') {
+    statusColor = 'bg-slate-400';
+    statusLabel = 'スタンドアロン（共有不可）';
+  } else if (status === 'ready') {
+    if (inMeeting) {
+      statusColor = 'bg-green-500';
+      statusLabel = 'Zoom内（共有待機）';
+    } else {
+      statusColor = 'bg-yellow-400';
+      statusLabel = 'Zoom外（共有不可）';
+    }
+  }
+
+  const canShare = status === 'ready' && inMeeting;
+  const isSharing = status === 'sharing';
+  const shareDisabled = status === 'initializing' || status === 'not-in-zoom' || (!canShare && !isSharing);
 
   const canStart = state.phase === 'idle';
   const isRunning = state.isRunning && !state.isPaused;
@@ -69,13 +75,11 @@ export function ControlScreen({ initialPreset, zoomConfig, joinZoom, onExit }: P
         <div className="flex items-center justify-between pt-2">
           <h1 className="text-xl font-black text-white tracking-tight">ミーティングタイマー</h1>
           <div className="flex items-center gap-3">
-            {joinZoom && (
-              <div className="flex items-center gap-2 text-sm text-slate-300">
-                <span className={`w-2.5 h-2.5 rounded-full ${statusColor}`} />
-                <span>{statusLabel}</span>
-              </div>
-            )}
-            <button onClick={async () => { await leave(); onExit(); }}
+            <div className="flex items-center gap-2 text-sm text-slate-300">
+              <span className={`w-2.5 h-2.5 rounded-full ${statusColor}`} />
+              <span>{statusLabel}</span>
+            </div>
+            <button onClick={async () => { if (isSharing) await stopShare(); onExit(); }}
               className="px-4 py-2 bg-slate-600 hover:bg-slate-500 text-sm font-medium rounded-xl transition-colors">
               終了
             </button>
@@ -94,7 +98,7 @@ export function ControlScreen({ initialPreset, zoomConfig, joinZoom, onExit }: P
           {/* Canvas */}
           <div className="flex-shrink-0 mx-auto lg:mx-0">
             <TimerCanvas state={state} canvasRef={canvasRef} size={320} />
-            <p className="text-center text-xs text-slate-500 mt-2">Zoom参加者に配信される映像</p>
+            <p className="text-center text-xs text-slate-500 mt-2">全員に共有するとこの映像が表示されます</p>
           </div>
 
           {/* Controls */}
@@ -119,6 +123,19 @@ export function ControlScreen({ initialPreset, zoomConfig, joinZoom, onExit }: P
                   {state.isOvertime ? '延長中' : state.phase === 'warning' ? '警告 — 残り時間わずか' : state.isPaused ? '一時停止中' : '実行中'}
                 </div>
               </div>
+            )}
+
+            {/* Share button */}
+            {isSharing ? (
+              <button onClick={stopShare}
+                className="w-full py-3.5 bg-red-600 hover:bg-red-500 text-white font-black rounded-2xl text-lg transition-colors">
+                🛑 共有を停止
+              </button>
+            ) : (
+              <button onClick={share} disabled={shareDisabled}
+                className={`w-full py-3.5 font-black rounded-2xl text-lg transition-colors ${shareDisabled ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-500 text-white'}`}>
+                📤 全員に共有
+              </button>
             )}
 
             {/* Control buttons */}
@@ -168,7 +185,7 @@ export function ControlScreen({ initialPreset, zoomConfig, joinZoom, onExit }: P
 
             {showTest && (
               <div className="bg-slate-700 rounded-2xl p-4 space-y-3">
-                <p className="text-xs text-slate-400">ベル音と音声のテストができます。Zoom参加者にも届くか確認してください。</p>
+                <p className="text-xs text-slate-400">ベル音と音声のテストができます。共有中ならZoom参加者にも届きます。</p>
                 <div className="flex flex-wrap gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">ベルの種類</label>

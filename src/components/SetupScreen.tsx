@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import type { AlarmConfig, TimerPreset, ZoomConfig } from '../types';
-import { loadZoomConfig, saveZoomConfig, loadPresets, savePreset, deletePreset } from '../utils/storage';
+import type { AlarmConfig, TimerPreset } from '../types';
+import { loadPresets, savePreset, deletePreset } from '../utils/storage';
 import { createDefaultPreset } from '../utils/defaults';
 import { prewarmTTS } from '../utils/audioEngine';
 import { TimeInput } from './TimeInput';
 import { AlarmRow } from './AlarmRow';
 
 interface Props {
-  onStart: (preset: TimerPreset, zoomConfig: ZoomConfig, joinZoom: boolean) => void;
+  onStart: (preset: TimerPreset) => void;
 }
 
 function generateId() {
@@ -15,21 +15,11 @@ function generateId() {
 }
 
 export function SetupScreen({ onStart }: Props) {
-  const savedZoom = loadZoomConfig();
-  const [clientId, setClientId] = useState(savedZoom.clientId);
-  const [clientSecret, setClientSecret] = useState(savedZoom.clientSecret);
-  const [meetingNumber, setMeetingNumber] = useState('');
-  const [passcode, setPasscode] = useState('');
-  const [joinZoom, setJoinZoom] = useState(true);
-
   const presets = loadPresets();
   const [activePreset, setActivePreset] = useState<TimerPreset>(
     presets[0] ?? createDefaultPreset()
   );
   const [presetName, setPresetName] = useState(activePreset.name);
-  const [showSettings, setShowSettings] = useState(false);
-
-  const credentialsConfigured = !!(clientId && clientSecret);
 
   const updateAlarm = (updated: AlarmConfig) => {
     setActivePreset(p => ({ ...p, alarms: p.alarms.map(a => a.id === updated.id ? updated : a) }));
@@ -67,12 +57,7 @@ export function SetupScreen({ onStart }: Props) {
 
   const handleStart = () => {
     prewarmTTS();
-    if (joinZoom) saveZoomConfig({ clientId, clientSecret });
-    onStart(
-      activePreset,
-      { clientId, clientSecret, meetingNumber: meetingNumber.replace(/\s/g, ''), passcode, displayName: 'Meeting Timer' },
-      joinZoom
-    );
+    onStart(activePreset);
   };
 
   const mainAlarm = activePreset.alarms.find(a => a.type === 'main')!;
@@ -86,77 +71,7 @@ export function SetupScreen({ onStart }: Props) {
         {/* Header */}
         <div className="text-center pt-6 pb-2">
           <h1 className="text-3xl font-black text-slate-800 tracking-tight">ミーティングタイマー</h1>
-          <p className="text-slate-400 text-sm mt-1">タイマーを設定してZoom会議に参加</p>
-        </div>
-
-        {/* SDK Settings */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <span className="text-lg">⚙️</span>
-              <span className="font-semibold text-slate-700">Zoom SDK 設定</span>
-            </div>
-            <span className="text-sm">
-              {credentialsConfigured && !showSettings
-                ? <span className="text-green-500 font-medium">✓ 設定済み</span>
-                : <span className="text-slate-400">{showSettings ? '▲' : '▼'}</span>}
-            </span>
-          </button>
-          {showSettings && (
-            <div className="px-5 pb-5 pt-1 space-y-3 border-t border-slate-100">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">クライアントID</label>
-                <input type="text" value={clientId} onChange={e => setClientId(e.target.value)}
-                  placeholder="Zoom Meeting SDK Client ID"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">クライアントシークレット</label>
-                <input type="password" value={clientSecret} onChange={e => setClientSecret(e.target.value)}
-                  placeholder="Zoom Meeting SDK Client Secret"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-              </div>
-              {(!clientId || !clientSecret) && (
-                <p className="text-amber-600 text-xs bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-                  認証情報が未設定です。Zoomへの参加には設定が必要です。
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Zoom Meeting */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-            <div className="flex items-center gap-2.5">
-              <span className="text-lg">📹</span>
-              <span className="font-semibold text-slate-700">Zoom ミーティング</span>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input type="checkbox" checked={joinZoom} onChange={e => setJoinZoom(e.target.checked)}
-                className="accent-blue-600 w-4 h-4" />
-              <span className="text-sm font-medium text-slate-600">Zoomに参加</span>
-            </label>
-          </div>
-          {joinZoom && (
-            <div className="px-5 py-4 grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">ミーティングID</label>
-                <input type="text" value={meetingNumber} onChange={e => setMeetingNumber(e.target.value)}
-                  placeholder="000 000 0000"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">パスコード</label>
-                <input type="text" value={passcode} onChange={e => setPasscode(e.target.value)}
-                  placeholder="パスコード"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-400" />
-              </div>
-            </div>
-          )}
+          <p className="text-slate-400 text-sm mt-1">タイマーを設定する</p>
         </div>
 
         {/* Timer Preset */}
@@ -237,7 +152,7 @@ export function SetupScreen({ onStart }: Props) {
         {/* Start Button */}
         <button onClick={handleStart}
           className="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white text-xl font-black rounded-2xl shadow-lg transition-colors">
-          {joinZoom ? '📹 Zoomに参加してタイマー開始' : '▶ タイマー開始（ローカルのみ）'}
+          ▶ タイマー開始
         </button>
         <div className="h-4" />
       </div>

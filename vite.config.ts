@@ -8,7 +8,4 @@ export default defineConfig({
   define: {
     global: 'globalThis',
   },
-  optimizeDeps: {
-    exclude: ['@zoom/meetingsdk'],
-  },
 })

@@ -1,7 +1,6 @@
 import type { TimerPreset, AlarmConfig } from '../types';
 
 const PRESETS_KEY = 'meeting_timer_presets';
-const ZOOM_CONFIG_KEY = 'meeting_timer_zoom_config';
 
 function migrateAlarm(alarm: AlarmConfig): AlarmConfig {
   return {
@@ -39,21 +38,4 @@ export function savePreset(preset: TimerPreset): void {
 
 export function deletePreset(id: string): void {
   savePresets(loadPresets().filter(p => p.id !== id));
-}
-
-export function loadZoomConfig(): { clientId: string; clientSecret: string } {
-  const envDefaults = {
-    clientId: import.meta.env.VITE_ZOOM_CLIENT_ID ?? '',
-    clientSecret: import.meta.env.VITE_ZOOM_CLIENT_SECRET ?? '',
-  };
-  try {
-    const raw = localStorage.getItem(ZOOM_CONFIG_KEY);
-    return raw ? JSON.parse(raw) : envDefaults;
-  } catch {
-    return envDefaults;
-  }
-}
-
-export function saveZoomConfig(config: { clientId: string; clientSecret: string }): void {
-  localStorage.setItem(ZOOM_CONFIG_KEY, JSON.stringify(config));
 }

@@ -31,12 +31,4 @@ export interface TimerState {
   lastOvertimeBellAt: number;
 }
 
-export interface ZoomConfig {
-  clientId: string;
-  clientSecret: string;
-  meetingNumber: string;
-  passcode: string;
-  displayName: string;
-}
-
 export type AppScreen = 'password' | 'setup' | 'control';
