@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { TimerPreset, ZoomConfig } from '../types';
 import { useTimer } from '../hooks/useTimer';
 import { useZoomBot } from '../hooks/useZoomBot';
@@ -25,10 +25,13 @@ export function ControlScreen({ initialPreset, zoomConfig, joinZoom, onExit }: P
   const [testMessage, setTestMessage] = useState('One minute remaining');
   const joinedRef = useRef(false);
 
-  if (joinZoom && !joinedRef.current) {
-    joinedRef.current = true;
-    join(zoomConfig);
-  }
+  useEffect(() => {
+    if (joinZoom && !joinedRef.current) {
+      joinedRef.current = true;
+      // Delay slightly to ensure canvas is fully mounted and rendering
+      setTimeout(() => join(zoomConfig), 100);
+    }
+  }, [joinZoom, zoomConfig, join]);
 
   const handleReset = () => { reset(); applyPreset(preset); };
 

@@ -73,15 +73,6 @@ export function useZoomBot() {
       const ctx = getAudioContext();
       if (ctx.state === 'suspended') await ctx.resume();
 
-      // Install virtual media BEFORE the SDK loads, so any getUserMedia call is intercepted
-      const canvas = canvasRef.current;
-      const audioStream = getVirtualAudioStream();
-      if (canvas) {
-        installVirtualMedia(canvas, audioStream);
-      } else {
-        console.warn('[VirtualMedia] canvas ref not yet available');
-      }
-
       const { default: ZoomMtgEmbedded } = await import('@zoom/meetingsdk/embedded');
       const client = ZoomMtgEmbedded.createClient() as any;
       clientRef.current = client;
@@ -122,9 +113,17 @@ export function useZoomBot() {
 
       setStatus('connected');
 
-      // Start video and audio — the SDK will call getUserMedia, which is now hooked
+      // Install virtual media hook now that canvas is ready, then start video/audio
       setTimeout(async () => {
         try {
+          const canvas = canvasRef.current;
+          const audioStream = getVirtualAudioStream();
+          if (canvas) {
+            installVirtualMedia(canvas, audioStream);
+          } else {
+            console.warn('[VirtualMedia] canvas STILL not available after delay');
+          }
+
           const mediaStream = client.getMediaStream();
 
           try {
